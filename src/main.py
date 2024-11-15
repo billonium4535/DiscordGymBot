@@ -54,6 +54,8 @@ def get_last_workout(user: str, password: str):
         response = session.get("https://api.hevyapp.com/account", headers=headers)
 
         return datetime.strptime(json.loads(response.text)["last_workout_at"], "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%d-%m-%Y %H:%M:%S")
+    elif response.status_code == 401:
+        return "Your details are incorrect, please login again"
     else:
         return "Too many API requests, please wait"
 
@@ -86,6 +88,8 @@ def get_workouts_batch(user: str, password: str):
             all_workouts += formatted_workouts
 
         return all_workouts
+    elif response.status_code == 401:
+        return "Your details are incorrect, please login again"
     else:
         return "Too many API requests, please wait"
 
@@ -106,9 +110,10 @@ def update_workouts_batch(user: str, password: str, credentials):
         except json.JSONDecodeError:
             raw_json_workouts = get_workouts_batch(user, password)
             if raw_json_workouts != "Too many API requests, please wait":
-                with open(f"{os.path.dirname(__file__)}/Workout_Data/{credentials}.json", "w") as file:
-                    json.dump(raw_json_workouts, file, indent=4)
-                file.close()
+                if raw_json_workouts != "Your details are incorrect, please login again":
+                    with open(f"{os.path.dirname(__file__)}/Workout_Data/{credentials}.json", "w") as file:
+                        json.dump(raw_json_workouts, file, indent=4)
+                    file.close()
 
         session.headers.update({"auth-token": json_content["auth_token"]})
 
@@ -134,6 +139,8 @@ def update_workouts_batch(user: str, password: str, credentials):
             all_workouts += formatted_workouts
 
         return all_workouts
+    elif response.status_code == 401:
+        return "Your details are incorrect, please login again"
     else:
         return "Too many API requests, please wait"
 
@@ -189,7 +196,11 @@ async def last_workout_command(interaction):
     creds = credential_handler.load_credentials()
     if str(interaction.user.id) in creds:
         last_workout_time = get_last_workout(creds[str(interaction.user.id)]["username"], password_handler.decrypt_password(creds[str(interaction.user.id)]["password"]))
-        await interaction.followup.send(f"Your last work out was {last_workout_time}")
+        if last_workout_time == "Your details are incorrect, please login again":
+            credential_handler.remove_user(interaction.user.id)
+            await interaction.followup.send(f"Your details are incorrect, please login again using `/login <username> <password>`", ephemeral=True)
+        else:
+            await interaction.followup.send(f"Your last work out was {last_workout_time}")
     else:
         await interaction.followup.send("You are not logged in to Hevy, please log in using `/login <username> <password>`", ephemeral=True)
 
@@ -200,13 +211,25 @@ async def last_workout_command(interaction):
     guild=discord.Object(id=guild)
 )
 async def all_last_workouts_command(interaction):
+    error = False
     await interaction.response.defer()
     creds = credential_handler.load_credentials()
     last_workout_array = ""
     if str(interaction.user.id) in creds:
         for cred in creds:
-            last_workout_array += f'{creds[str(cred)]["username"]}: {get_last_workout(creds[str(cred)]["username"], password_handler.decrypt_password(creds[str(cred)]["password"]))}\n'
-        await interaction.followup.send(f"Everyone's last workout:\n{last_workout_array}")
+            if not error:
+                last_workout = get_last_workout(creds[str(cred)]["username"], password_handler.decrypt_password(creds[str(cred)]["password"]))
+                if last_workout == "Your details are incorrect, please login again":
+                    credential_handler.remove_user(cred)
+                    await interaction.followup.send(f"Your details are incorrect, please login again using `/login <username> <password>`", ephemeral=True)
+                    error = True
+                elif last_workout == "Too many API requests, please wait":
+                    await interaction.followup.send("Too many API requests, please wait")
+                    error = True
+                else:
+                    last_workout_array += f'{creds[str(cred)]["username"]}: {last_workout}\n'
+        if not error:
+            await interaction.followup.send(f"Everyone's last workout:\n{last_workout_array}")
     else:
         await interaction.followup.send("You are not logged in to Hevy, please log in using `/login <username> <password>`", ephemeral=True)
 
@@ -323,32 +346,39 @@ async def gym_reminder():
             last_workout_time = get_last_workout(creds[str(cred)]["username"], password_handler.decrypt_password(creds[str(cred)]["password"]))
             if last_workout_time != "Too many API requests, please wait":
                 checked = True
-                formatted_time = datetime.strptime(last_workout_time, "%d-%m-%Y %H:%M:%S")
-                frequency = int(creds[str(cred)]["frequency"])
-                time_updated = creds[str(cred)]["time_updated"]
-                if time_updated is not None:
-                    time_updated = datetime.strptime(time_updated, "%Y-%m-%d %H:%M:%S.%f")
-                if now >= formatted_time + timedelta(days=frequency):
-                    if time_updated is None or now - time_updated > timedelta(days=1):
-                        credential_handler.update_time_updated(int(cred), str(now))
-                        time_since = now - formatted_time
-                        hours, remainder = divmod(time_since.seconds, 3600)
-                        minutes = int(remainder / 60)
-                        await client.get_channel(channel).send(f"<@{int(cred)}>\nYou haven't been to the gym in {time_since.days} days, {hours:02d} hours and {minutes:02d} minutes\nStop being lazy and go gym")
+                if last_workout_time != "Your details are incorrect, please login again":
+                    formatted_time = datetime.strptime(last_workout_time, "%d-%m-%Y %H:%M:%S")
+                    frequency = int(creds[str(cred)]["frequency"])
+                    time_updated = creds[str(cred)]["time_updated"]
+                    if time_updated is not None:
+                        time_updated = datetime.strptime(time_updated, "%Y-%m-%d %H:%M:%S.%f")
+                    if now >= formatted_time + timedelta(days=frequency):
+                        if time_updated is None or now - time_updated > timedelta(days=1):
+                            credential_handler.update_time_updated(int(cred), str(now))
+                            time_since = now - formatted_time
+                            hours, remainder = divmod(time_since.seconds, 3600)
+                            minutes = int(remainder / 60)
+                            await client.get_channel(channel).send(f"<@{int(cred)}>\nYou haven't been to the gym in {time_since.days} days, {hours:02d} hours and {minutes:02d} minutes\nStop being lazy and go gym")
+                else:
+                    credential_handler.remove_user(cred)
+                    removed_user = await client.fetch_user(cred)
+                    await removed_user.send(f"Your Hevy details are incorrect, if you want to continue to use the bot, please login again using `/login <username> <password>` in https://discord.com/channels/{guild}/{channel}")
             else:
                 await asyncio.sleep(30)
         if os.path.isfile(f"{os.path.dirname(__file__)}/Workout_Data/{cred}.json"):
             raw_json_workouts = update_workouts_batch(creds[str(cred)]["username"], password_handler.decrypt_password(creds[str(cred)]["password"]), cred)
             if raw_json_workouts != "Too many API requests, please wait":
-                with open(f"{os.path.dirname(__file__)}/Workout_Data/{cred}.json", "w") as file:
-                    json.dump(raw_json_workouts, file, indent=4)
-                file.close()
+                if raw_json_workouts != "Your details are incorrect, please login again":
+                    with open(f"{os.path.dirname(__file__)}/Workout_Data/{cred}.json", "w") as file:
+                        json.dump(raw_json_workouts, file, indent=4)
+                    file.close()
         else:
             raw_json_workouts = get_workouts_batch(creds[str(cred)]["username"], password_handler.decrypt_password(creds[str(cred)]["password"]))
             if raw_json_workouts != "Too many API requests, please wait":
-                with open(f"{os.path.dirname(__file__)}/Workout_Data/{cred}.json", "w") as file:
-                    json.dump(raw_json_workouts, file, indent=4)
-                file.close()
+                if raw_json_workouts != "Your details are incorrect, please login again":
+                    with open(f"{os.path.dirname(__file__)}/Workout_Data/{cred}.json", "w") as file:
+                        json.dump(raw_json_workouts, file, indent=4)
+                    file.close()
 
 
 @client.event
