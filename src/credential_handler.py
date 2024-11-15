@@ -75,7 +75,7 @@ def update_time_updated(discord_id, time_updated):
     Updates the frequency of the user.
     Args:
         discord_id (int): The discord id linked to the account.
-        time_updated (int): The times to update.
+        time_updated (str): The times to update.
     Returns:
         bool: True if the user was successfully updated.
     """
