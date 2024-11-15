@@ -52,6 +52,24 @@ def add_user(discord_id, username, password, frequency):
     return userAdded
 
 
+def remove_user(discord_id):
+    """
+    Removes a user with the given username and password.
+    Args:
+        discord_id (int): The discord id linked to the account.
+    Returns:
+        bool: True if the user was successfully removed.
+    """
+    credentials = load_credentials()
+    if str(discord_id) not in credentials:
+        userRemoved = False
+    else:
+        del credentials[str(discord_id)]
+        save_credentials(credentials)
+        userRemoved = True
+    return userRemoved
+
+
 def update_time_updated(discord_id, time_updated):
     """
     Updates the frequency of the user.
