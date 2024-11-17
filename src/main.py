@@ -156,8 +156,7 @@ tree = app_commands.CommandTree(client)
     guild=discord.Object(id=guild)
 )
 async def help_command(interaction):
-    await interaction.response.defer()
-    await interaction.followup.send('Login to Hevy using `/login <username> <password>`\nYour details are private and only you can see them\nYour password is encrypted\nThis will start the *encouragement*', ephemeral=True)
+    await interaction.response.send('Login to Hevy using `/login <username> <password>`\nYour details are private and only you can see them\nYour password is encrypted\nThis will start the *encouragement*', ephemeral=True)
 
 
 @tree.command(
@@ -166,8 +165,7 @@ async def help_command(interaction):
     guild=discord.Object(id=guild)
 )
 async def source_code_command(interaction):
-    await interaction.response.defer()
-    await interaction.followup.send('**Source Code:**\n<https://github.com/billonium4535/DiscordGymBot>\n\n**Policies:**\n<https://billonium4535.github.io/DiscordGymBot/>', ephemeral=True)
+    await interaction.response.send('**Source Code:**\n<https://github.com/billonium4535/DiscordGymBot>\n\n**Policies:**\n<https://billonium4535.github.io/DiscordGymBot/>', ephemeral=True)
 
 
 @tree.command(
@@ -176,14 +174,13 @@ async def source_code_command(interaction):
     guild=discord.Object(id=guild)
 )
 async def login_command(interaction, username: str, password: str):
-    await interaction.response.defer()
     if hevy_login(username, password):
         if credential_handler.add_user(interaction.user.id, username, password_handler.encrypt_password(password), frequency=7):
-            await interaction.followup.send("You have successfully logged in to Hevy", ephemeral=True)
+            await interaction.response.send("You have successfully logged in to Hevy", ephemeral=True)
         else:
-            await interaction.followup.send("You are already logged in to Hevy", ephemeral=True)
+            await interaction.response.send("You are already logged in to Hevy", ephemeral=True)
     else:
-        await interaction.followup.send("login failed, incorrect username or password", ephemeral=True)
+        await interaction.response.send("login failed, incorrect username or password", ephemeral=True)
 
 
 @tree.command(
@@ -192,17 +189,16 @@ async def login_command(interaction, username: str, password: str):
     guild=discord.Object(id=guild)
 )
 async def last_workout_command(interaction):
-    await interaction.response.defer()
     creds = credential_handler.load_credentials()
     if str(interaction.user.id) in creds:
         last_workout_time = get_last_workout(creds[str(interaction.user.id)]["username"], password_handler.decrypt_password(creds[str(interaction.user.id)]["password"]))
         if last_workout_time == "Your details are incorrect, please login again":
             credential_handler.remove_user(interaction.user.id)
-            await interaction.followup.send(f"Your details are incorrect, please login again using `/login <username> <password>`", ephemeral=True)
+            await interaction.response.send(f"Your details are incorrect, please login again using `/login <username> <password>`", ephemeral=True)
         else:
-            await interaction.followup.send(f"Your last work out was {last_workout_time}")
+            await interaction.response.send(f"Your last work out was {last_workout_time}")
     else:
-        await interaction.followup.send("You are not logged in to Hevy, please log in using `/login <username> <password>`", ephemeral=True)
+        await interaction.response.send("You are not logged in to Hevy, please log in using `/login <username> <password>`", ephemeral=True)
 
 
 @tree.command(
@@ -212,7 +208,6 @@ async def last_workout_command(interaction):
 )
 async def all_last_workouts_command(interaction):
     error = False
-    await interaction.response.defer()
     creds = credential_handler.load_credentials()
     last_workout_array = ""
     if str(interaction.user.id) in creds:
@@ -221,17 +216,17 @@ async def all_last_workouts_command(interaction):
                 last_workout = get_last_workout(creds[str(cred)]["username"], password_handler.decrypt_password(creds[str(cred)]["password"]))
                 if last_workout == "Your details are incorrect, please login again":
                     credential_handler.remove_user(cred)
-                    await interaction.followup.send(f"Your details are incorrect, please login again using `/login <username> <password>`", ephemeral=True)
+                    await interaction.response.send(f"Your details are incorrect, please login again using `/login <username> <password>`", ephemeral=True)
                     error = True
                 elif last_workout == "Too many API requests, please wait":
-                    await interaction.followup.send("Too many API requests, please wait")
+                    await interaction.response.send("Too many API requests, please wait")
                     error = True
                 else:
                     last_workout_array += f'{creds[str(cred)]["username"]}: {last_workout}\n'
         if not error:
-            await interaction.followup.send(f"Everyone's last workout:\n{last_workout_array}")
+            await interaction.response.send(f"Everyone's last workout:\n{last_workout_array}")
     else:
-        await interaction.followup.send("You are not logged in to Hevy, please log in using `/login <username> <password>`", ephemeral=True)
+        await interaction.response.send("You are not logged in to Hevy, please log in using `/login <username> <password>`", ephemeral=True)
 
 
 @tree.command(
@@ -240,16 +235,15 @@ async def all_last_workouts_command(interaction):
     guild=discord.Object(id=guild)
 )
 async def gym_frequency_command(interaction, frequency:int):
-    await interaction.response.defer()
     if 0 < frequency < 14:
         if credential_handler.update_frequency(interaction.user.id, frequency):
-            await interaction.followup.send(f"You will now be reminded every {frequency} days")
+            await interaction.response.send(f"You will now be reminded every {frequency} days")
         else:
-            await interaction.followup.send("You are not logged in to Hevy, please log in using `/login <username> <password>`", ephemeral=True)
+            await interaction.response.send("You are not logged in to Hevy, please log in using `/login <username> <password>`", ephemeral=True)
     elif frequency <= 0:
-        await interaction.followup.send("Please enter a number larger than 0")
+        await interaction.response.send("Please enter a number larger than 0")
     elif frequency >= 14:
-        await interaction.followup.send("Please enter a number smaller than 14 and stop being so lazy")
+        await interaction.response.send("Please enter a number smaller than 14 and stop being so lazy")
 
 
 @tree.command(
@@ -258,9 +252,8 @@ async def gym_frequency_command(interaction, frequency:int):
     guild=discord.Object(id=guild)
 )
 async def exercise_graph_command(interaction, exercise: str, all_members: bool):
-    await interaction.response.defer()
     if exercise not in VALID_EXERCISES:
-        await interaction.followup.send("Please pick a valid exercise", ephemeral=True)
+        await interaction.response.send("Please pick a valid exercise", ephemeral=True)
     else:
         if all_members:
             data_list = []
@@ -274,10 +267,10 @@ async def exercise_graph_command(interaction, exercise: str, all_members: bool):
 
             graph_creator.plot_multiple_graph(exercise, *data_list, *user_list)
 
-            await interaction.followup.send(file=discord.File(f"{os.path.dirname(__file__)}/Graphs/users.png"))
+            await interaction.response.send(file=discord.File(f"{os.path.dirname(__file__)}/Graphs/users.png"))
         else:
             graph_creator.plot_single_graph(exercise, graph_creator.get_graph_data(f"{os.path.dirname(__file__)}/Workout_Data/{interaction.user.id}.json", exercise), str(interaction.user.id))
-            await interaction.followup.send(file=discord.File(f"{os.path.dirname(__file__)}/Graphs/{interaction.user.id}.png"))
+            await interaction.response.send(file=discord.File(f"{os.path.dirname(__file__)}/Graphs/{interaction.user.id}.png"))
 
 
 @exercise_graph_command.autocomplete('exercise')
@@ -294,9 +287,8 @@ async def exercise_graph_autocomplete(interaction, current: str) -> List[app_com
     guild=discord.Object(id=guild)
 )
 async def max_weight_command(interaction, exercise: str, all_members: bool):
-    await interaction.response.defer()
     if exercise not in VALID_EXERCISES:
-        await interaction.followup.send("Please pick a valid exercise", ephemeral=True)
+        await interaction.response.send("Please pick a valid exercise", ephemeral=True)
     else:
         data_list = []
         if all_members:
@@ -317,7 +309,7 @@ async def max_weight_command(interaction, exercise: str, all_members: bool):
                         max_weight = weight
                 output = output + f"{user_list[i]}: {max_weight}kg\n"
                 i = i + 1
-            await interaction.followup.send(f"**{exercise} PRs**\n{output}")
+            await interaction.response.send(f"**{exercise} PRs**\n{output}")
         else:
             data = graph_creator.get_graph_data(f"{os.path.dirname(__file__)}/Workout_Data/{interaction.user.id}.json", exercise)
             data_list.append(data[1])
@@ -325,7 +317,7 @@ async def max_weight_command(interaction, exercise: str, all_members: bool):
             for weight in data_list[0]:
                 if weight > max_weight:
                     max_weight = weight
-            await interaction.followup.send(f"Your **{exercise}** PR is:\n{max_weight}kg")
+            await interaction.response.send(f"Your **{exercise}** PR is:\n{max_weight}kg")
 
 
 @max_weight_command.autocomplete('exercise')
