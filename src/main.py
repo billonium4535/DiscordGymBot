@@ -188,43 +188,33 @@ async def login_command(interaction, username: str, password: str):
     description="Gets the last time you've worked out",
     guild=discord.Object(id=guild)
 )
-async def last_workout_command(interaction):
-    creds = credential_handler.load_credentials()
-    if str(interaction.user.id) in creds:
-        last_workout_time = get_last_workout(creds[str(interaction.user.id)]["username"], password_handler.decrypt_password(creds[str(interaction.user.id)]["password"]))
-        if last_workout_time == "Your details are incorrect, please login again":
-            credential_handler.remove_user(interaction.user.id)
-            await interaction.response.send_message(f"Your details are incorrect, please login again using `/login <username> <password>`", ephemeral=True)
-        else:
-            await interaction.response.send_message(f"Your last work out was {last_workout_time}")
-    else:
-        await interaction.response.send_message("You are not logged in to Hevy, please log in using `/login <username> <password>`", ephemeral=True)
-
-
-@tree.command(
-    name="all-last-workouts",
-    description="Gets the last time everyone's worked out",
-    guild=discord.Object(id=guild)
-)
-async def all_last_workouts_command(interaction):
+async def last_workout_command(interaction, all_members: bool):
     error = False
     creds = credential_handler.load_credentials()
     last_workout_array = ""
     if str(interaction.user.id) in creds:
-        for cred in creds:
+        if all_members:
+            for cred in creds:
+                if not error:
+                    last_workout = get_last_workout(creds[str(cred)]["username"], password_handler.decrypt_password(creds[str(cred)]["password"]))
+                    if last_workout == "Your details are incorrect, please login again":
+                        credential_handler.remove_user(cred)
+                        await interaction.response.send_message(f"A user's details are incorrect, please run this command again", ephemeral=True)
+                        error = True
+                    elif last_workout == "Too many API requests, please wait":
+                        await interaction.response.send_message("Too many API requests, please wait")
+                        error = True
+                    else:
+                        last_workout_array += f'{creds[str(cred)]["username"]}: {last_workout}\n'
             if not error:
-                last_workout = get_last_workout(creds[str(cred)]["username"], password_handler.decrypt_password(creds[str(cred)]["password"]))
-                if last_workout == "Your details are incorrect, please login again":
-                    credential_handler.remove_user(cred)
-                    await interaction.response.send_message(f"Your details are incorrect, please login again using `/login <username> <password>`", ephemeral=True)
-                    error = True
-                elif last_workout == "Too many API requests, please wait":
-                    await interaction.response.send_message("Too many API requests, please wait")
-                    error = True
-                else:
-                    last_workout_array += f'{creds[str(cred)]["username"]}: {last_workout}\n'
-        if not error:
-            await interaction.response.send_message(f"Everyone's last workout:\n{last_workout_array}")
+                await interaction.response.send_message(f"Everyone's last workout:\n{last_workout_array}")
+        else:
+            last_workout_time = get_last_workout(creds[str(interaction.user.id)]["username"], password_handler.decrypt_password(creds[str(interaction.user.id)]["password"]))
+            if last_workout_time == "Your details are incorrect, please login again":
+                credential_handler.remove_user(interaction.user.id)
+                await interaction.response.send_message(f"Your details are incorrect, please login again using `/login <username> <password>`", ephemeral=True)
+            else:
+                await interaction.response.send_message(f"Your last work out was {last_workout_time}")
     else:
         await interaction.response.send_message("You are not logged in to Hevy, please log in using `/login <username> <password>`", ephemeral=True)
 
