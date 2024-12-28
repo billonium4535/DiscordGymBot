@@ -340,7 +340,10 @@ async def gym_reminder():
                             time_since = now - formatted_time
                             hours, remainder = divmod(time_since.seconds, 3600)
                             minutes = int(remainder / 60)
-                            await client.get_channel(channel).send(f"<@{int(cred)}>\nYou haven't been to the gym in {time_since.days} days, {hours:02d} hours and {minutes:02d} minutes\nStop being lazy and go gym")
+                            if time_since.days < (frequency * 2):
+                                await client.get_channel(channel).send(f"<@{int(cred)}>\nYou haven't been to the gym in {time_since.days} days, {hours:02d} hours and {minutes:02d} minutes\nStop being lazy and go gym")
+                            elif time_since.days == (frequency * 2):
+                                await client.get_channel(channel).send(f"<@{int(cred)}>\nYou haven't been to the gym in {time_since.days} days, {hours:02d} hours and {minutes:02d} minutes\nBecause your lazy ass is so god damn lazy, I can't be bothered to remind you anymore\nWhen you decide to stop being such a fat ass, I'll be there to support again")
                 else:
                     credential_handler.remove_user(cred)
                     removed_user = await client.fetch_user(cred)
